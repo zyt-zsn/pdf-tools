@@ -32,6 +32,7 @@
 (require 'jka-compr)
 (require 'bookmark)
 (require 'password-cache)
+(require 'dash)
 
 (declare-function cua-copy-region "cua-base")
 (declare-function pdf-tools-pdf-buffer-p "pdf-tools")
@@ -348,9 +349,11 @@ PNG images in Emacs buffers."
                    (not (and buffer-file-name
                              (file-readable-p buffer-file-name)))))
              (pdf-tools-pdf-buffer-p))
-    (let ((tempfile (pdf-util-make-temp-file)))
-      (write-region nil nil tempfile nil 'no-message)
-      (setq-local pdf-view--buffer-file-name tempfile)))
+    (--if-let (file-local-copy buffer-file-name)
+        (setq-local pdf-view--buffer-file-name it)
+      (let ((tempfile (pdf-util-make-temp-file)))
+        (write-region nil nil tempfile nil 'no-message)
+        (setq-local pdf-view--buffer-file-name tempfile))))
   ;; Decryption needs to be done before any other function calls into
   ;; pdf-info.el (e.g. from the mode-line during redisplay during
   ;; waiting for process output).
