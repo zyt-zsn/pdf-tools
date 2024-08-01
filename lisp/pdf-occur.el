@@ -476,13 +476,32 @@ Returns the window where the buffer is displayed."
   (when (derived-mode-p 'pdf-occur-buffer-mode)
     (save-current-buffer
       (with-no-warnings (pdf-occur-update-header-line)))))
-
+;; zyt
+(defun zyt/pdf-tools-local-temp-file-to-remote-file(temp-file-name)
+  (let* (
+         (match (--first
+                 (with-current-buffer it
+                   (when (and (eq major-mode 'pdf-view-mode)
+                              (string= pdf-view--buffer-file-name temp-file-name))
+                     it
+                     )
+                   )
+                 (buffer-list)
+                 ))
+         )
+    (or
+     (buffer-file-name match)
+     temp-file-name 
+     )
+    )
+  )
 (defun pdf-occur-create-entry (filename page &optional match)
   "Create a `tabulated-list-entries' entry for a search result.
 
 If match is nil, create a fake entry for documents w/o any
 matches linked with PAGE."
-  (let* ((text (or (car match) "[No matches]"))
+  (let* ((filename (zyt/pdf-tools-local-temp-file-to-remote-file filename))
+         (text (or (car match) "[No matches]"))
          (edges (cdr match))
          (displayed-text
           (if match
@@ -792,7 +811,7 @@ in the search list."
                        (min last (+ first (1- (* (1+ i) batch-size))))))
            queries))))
     (nreverse queries)))
-
+;; zyt
 (defun pdf-occur-normalize-documents (documents)
   "Normalize list of documents.
 
@@ -804,8 +823,18 @@ applicable\) and ensures that every element looks like
                        (setq doc (cons doc nil)))
                      (when (and (bufferp (car doc))
                                 (buffer-file-name (car doc)))
-                       (setq doc (cons (buffer-file-name (car doc))
-                                       (cdr doc))))
+                       (setq doc (cons
+                                  (if (boundp 'dupan-prefix)
+                                      (let* ((fn (buffer-file-name (car doc))))
+                                        (if (string-prefix-p dupan-prefix fn)
+                                            (with-current-buffer (car doc)
+                                              pdf-view--buffer-file-name
+                                              )
+                                          fn)
+                                        )
+                                    (buffer-file-name (car doc))
+                                    )
+                                  (cdr doc))))
                      (if (stringp (car doc))
                          (cons (expand-file-name (car doc)) (cdr doc))
                        doc))
